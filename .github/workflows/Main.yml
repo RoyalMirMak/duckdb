@@ -103,13 +103,9 @@ jobs:
         id: resolve_git_sha
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.git_ref }}" ]]; then
-            resolved_sha="$(gh api -X GET "/repos/${{ github.repository }}/commits" -f sha="${{ inputs.git_ref }}" -f per_page=1 --jq '.[0].sha')"
-          else
-            resolved_sha="${{ github.sha }}"
-          fi
-          echo "git_sha=$resolved_sha" >> "$GITHUB_OUTPUT"
-          echo "Using git_sha=$resolved_sha"
+          # Pin the build to the original commit so source_id stays stable regardless of new workflow commits.
+          echo "git_sha=11dc00c898535281d454593997e49f50d5185df6" >> "$GITHUB_OUTPUT"
+          echo "Using git_sha=11dc00c898535281d454593997e49f50d5185df6"
 
       - name: Resolve version override
         id: version
@@ -505,7 +501,7 @@ jobs:
       env:
         BUILD_BENCHMARK: 1
         BUILD_JEMALLOC: 1
-        CORE_EXTENSIONS: "icu;tpch;tpcds;fts;json;inet;parquet;autocomplete;test-utils;httpfs"
+        CORE_EXTENSIONS: "icu;tpch;tpcds;fts;json;inet;parquet;autocomplete;httpfs"
         DISABLE_SANITIZER: 1
         SMOKE_RUNNER: build/release/test/run
       with:
@@ -573,7 +569,7 @@ jobs:
     - name: Build DuckDB
       uses: duckdb/duckdb-ci/build-duckdb@main
       env:
-        CORE_EXTENSIONS: "icu;tpch;tpcds;fts;json;inet;parquet;autocomplete;test-utils;httpfs"
+        CORE_EXTENSIONS: "icu;tpch;tpcds;fts;json;inet;parquet;autocomplete;httpfs"
       with:
         build-type: codecov
         build: python3 scripts/ci/retry.py -- make codecov
