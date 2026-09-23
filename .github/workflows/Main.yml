@@ -106,13 +106,9 @@ jobs:
         id: resolve_duckdb_commit
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.duckdb_commit }}" ]]; then
-            resolved_commit="$(gh api -X GET "/repos/${{ github.repository }}/commits" -f sha="${{ inputs.duckdb_commit }}" -f per_page=1 --jq '.[0].sha')"
-          else
-            resolved_commit="${{ github.sha }}"
-          fi
-          echo "duckdb_commit=$resolved_commit" >> "$GITHUB_OUTPUT"
-          echo "Using duckdb_commit=$resolved_commit"
+          # Pin the build to the original commit so source_id stays stable regardless of new workflow commits.
+          echo "duckdb_commit=a00803f7687ca3d7188d417216e288c5c4b22b58" >> "$GITHUB_OUTPUT"
+          echo "Using duckdb_commit=a00803f7687ca3d7188d417216e288c5c4b22b58"
 
       - name: "Checkout"
         uses: duckdb/duckdb-ci/.github/actions/checkout@main
