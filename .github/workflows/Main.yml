@@ -107,8 +107,8 @@ jobs:
         shell: bash
         run: |
           # Pin the build to the original commit so source_id stays stable regardless of new workflow commits.
-          echo "duckdb_commit=a00803f7687ca3d7188d417216e288c5c4b22b58" >> "$GITHUB_OUTPUT"
-          echo "Using duckdb_commit=a00803f7687ca3d7188d417216e288c5c4b22b58"
+          echo "duckdb_commit=c99ade5cb6028a4ae0a3d71ef1fd97f4c2154931" >> "$GITHUB_OUTPUT"
+          echo "Using duckdb_commit=c99ade5cb6028a4ae0a3d71ef1fd97f4c2154931"
 
       - name: "Checkout"
         uses: duckdb/duckdb-ci/.github/actions/checkout@main
