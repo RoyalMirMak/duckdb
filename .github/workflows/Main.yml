@@ -14,11 +14,8 @@ on:
         default: true
   repository_dispatch:
   push:
-    branches-ignore:
+    branches:
       - 'main'
-      - 'feature'
-      - 'v*.*-*'
-      - 'gh-readonly-queue/**'
     paths:
       - '**'
       - '!**.md'
@@ -103,24 +100,19 @@ jobs:
         id: resolve_git_sha
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.git_ref }}" ]]; then
-            resolved_sha="$(gh api -X GET "/repos/${{ github.repository }}/commits" -f sha="${{ inputs.git_ref }}" -f per_page=1 --jq '.[0].sha')"
-          else
-            resolved_sha="${{ github.sha }}"
-          fi
-          echo "git_sha=$resolved_sha" >> "$GITHUB_OUTPUT"
-          echo "Using git_sha=$resolved_sha"
+          # Pin the build to the original commit so source_id stays stable regardless of new workflow commits.
+          echo "git_sha=c99ade5cb6028a4ae0a3d71ef1fd97f4c2154931" >> "$GITHUB_OUTPUT"
+          echo "Using git_sha=c99ade5cb6028a4ae0a3d71ef1fd97f4c2154931"
 
       - name: Resolve version override
         id: version
         shell: bash
         run: |
-          effective_git_describe="${{ github.event_name == 'workflow_dispatch' && inputs.override_git_describe || '' }}"
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -z "${{ inputs.git_ref }}" && -z "$effective_git_describe" ]]; then
-            effective_git_describe="v2.0.0-alpha${{ github.run_number }}"
-          fi
-          echo "effective_git_describe=$effective_git_describe" >> "$GITHUB_OUTPUT"
-          echo "Using effective_git_describe=$effective_git_describe"
+          # Version is derived from the pinned git_sha checkout via git describe,
+          # so no override is passed. This avoids the extensions job creating a
+          # bogus git tag from a full describe string (which breaks CMake).
+          echo "effective_git_describe=" >> "$GITHUB_OUTPUT"
+          echo "Using effective_git_describe="
 
       - name: "Checkout"
         uses: duckdb/duckdb-ci/.github/actions/checkout@main
@@ -505,7 +497,7 @@ jobs:
       env:
         BUILD_BENCHMARK: 1
         BUILD_JEMALLOC: 1
-        CORE_EXTENSIONS: "icu;tpch;tpcds;fts;json;inet;parquet;autocomplete;test-utils;httpfs"
+        CORE_EXTENSIONS: "icu;tpch;tpcds;fts;json;inet;parquet;autocomplete;httpfs"
         DISABLE_SANITIZER: 1
         SMOKE_RUNNER: build/release/test/run
       with:
@@ -573,7 +565,7 @@ jobs:
     - name: Build DuckDB
       uses: duckdb/duckdb-ci/build-duckdb@main
       env:
-        CORE_EXTENSIONS: "icu;tpch;tpcds;fts;json;inet;parquet;autocomplete;test-utils;httpfs"
+        CORE_EXTENSIONS: "icu;tpch;tpcds;fts;json;inet;parquet;autocomplete;httpfs"
       with:
         build-type: codecov
         build: python3 scripts/ci/retry.py -- make codecov

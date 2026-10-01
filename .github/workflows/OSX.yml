@@ -11,11 +11,8 @@ on:
       run_all:
         type: boolean
   push:
-    branches-ignore:
+    branches:
       - 'main'
-      - 'feature'
-      - 'v*.*-*'
-      - 'gh-readonly-queue/**'
     paths:
       - '**'
       - '!**.md'

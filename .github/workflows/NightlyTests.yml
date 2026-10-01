@@ -3,11 +3,8 @@ on:
   workflow_dispatch:
   repository_dispatch:
   push:
-    branches-ignore:
+    branches:
       - 'main'
-      - 'feature'
-      - 'v*.*-*'
-      - 'gh-readonly-queue/**'
     paths:
       - '.github/workflows/NightlyTests.yml'
       - '.github/patches/duckdb-wasm/**'

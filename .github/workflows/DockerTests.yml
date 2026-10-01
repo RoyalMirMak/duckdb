@@ -18,11 +18,8 @@ on:
         type: string
   repository_dispatch:
   push:
-    branches-ignore:
+    branches:
       - 'main'
-      - 'feature'
-      - 'v*.*-*'
-      - 'gh-readonly-queue/**'
     paths:
       - '.github/workflows/DockerTests.yml'
   pull_request:

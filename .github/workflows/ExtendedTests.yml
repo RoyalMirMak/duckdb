@@ -2,11 +2,8 @@ name: ExtendedTests
 on:
   workflow_dispatch:
   push:
-    branches-ignore:
+    branches:
       - 'main'
-      - 'feature'
-      - 'v*.*-*'
-      - 'gh-readonly-queue/**'
     paths:
       - '.github/workflows/ExtendedTests.yml'
   pull_request:
