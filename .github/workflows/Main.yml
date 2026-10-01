@@ -131,13 +131,20 @@ jobs:
             alpha_args=(--alpha-run-number "${{ github.run_number }}")
             extension_allow_failure_archs="windows_amd64_mingw;linux_amd64_musl;linux_arm64_musl"
           fi
-          version_output="$(python3 scripts/ci/version.py \
-            --duckdb-commit "$RESOLVED_COMMIT" \
-            --duckdb-version "$INPUT_VERSION" \
-            "${alpha_args[@]}" \
-            --github-output)"
-          printf '%s\n' "$version_output" >> "$GITHUB_OUTPUT"
-          duckdb_version="$(sed -n 's/^duckdb_version=//p' <<<"$version_output")"
+          if [[ -f scripts/ci/version.py ]]; then
+            version_output="$(python3 scripts/ci/version.py \
+              --duckdb-commit "$RESOLVED_COMMIT" \
+              --duckdb-version "$INPUT_VERSION" \
+              "${alpha_args[@]}" \
+              --github-output)"
+            printf '%s\n' "$version_output" >> "$GITHUB_OUTPUT"
+            duckdb_version="$(sed -n 's/^duckdb_version=//p' <<<"$version_output")"
+          else
+            # Older DuckDB commits predate scripts/ci/version.py; resolve via git describe instead.
+            echo "duckdb_commit=$RESOLVED_COMMIT" >> "$GITHUB_OUTPUT"
+            duckdb_version="$(git describe --tags --long)"
+            echo "duckdb_version=$duckdb_version" >> "$GITHUB_OUTPUT"
+          fi
           if [[ ${#alpha_args[@]} -gt 0 ]]; then
             staged_version="${RESOLVED_COMMIT:0:10}/$duckdb_version"
           fi
