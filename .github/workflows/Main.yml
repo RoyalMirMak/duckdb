@@ -233,10 +233,10 @@ jobs:
       - name: Check format
         run: |
           make format-check-silent enum-integrity-check extension-patch-check -j -Otarget
-          echo "::group::Check generated files"
-          make generate-files
-          git diff --exit-code
-          echo "::endgroup::"
+          # The generate-files regeneration check is omitted here because the build
+          # is pinned to an older commit whose generated files may not match the
+          # output of the current generator/formatter (and format-main requires a
+          # main ref that is absent in the pinned-commit checkout).
 
  linux-relassert:
     name: Linux Relassert
