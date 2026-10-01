@@ -2,9 +2,9 @@ name: Windows
 on:
   workflow_call:
     inputs:
-      duckdb_version:
+      override_git_describe:
         type: string
-      duckdb_commit:
+      git_ref:
         type: string
       skip_tests:
         type: boolean
@@ -16,13 +16,12 @@ on:
         type: string
         required: true
 concurrency:
-  group: windows-${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}-${{ inputs.duckdb_version }}
+  group: windows-${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}-${{ inputs.override_git_describe }}
   cancel-in-progress: true
 
 env:
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
-  DUCKDB_VERSION: ${{ inputs.duckdb_version }}
-  DUCKDB_COMMIT: ${{ inputs.duckdb_commit }}
+  OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
   AZURE_CODESIGN_ENDPOINT: https://eus.codesigning.azure.net/
   AZURE_CODESIGN_ACCOUNT: duckdb-signing-2
   AZURE_CODESIGN_PROFILE: duckdb-certificate-profile
@@ -34,15 +33,13 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners).windows_2022_x64 || 'windows-2022' }}
     env:
       GEN: ninja
-      CC: clang-cl
-      CXX: clang-cl
     steps:
     - name: "Checkout"
       uses: duckdb/duckdb-ci/.github/actions/checkout@main
       with:
         runner_provider: ${{ inputs.runner_provider }}
         fetch_depth: 0
-        ref: ${{ inputs.duckdb_commit }}
+        ref: ${{ inputs.git_ref }}
 
     - uses: actions/setup-python@v6
       with:
@@ -55,17 +52,8 @@ jobs:
     - name: Build
       shell: bash
       run: |
-        clang-cl --version
         python scripts/ci/retry.py -- python scripts/windows_ci.py
         python scripts/ci/retry.py -- make windows_release
-
-    - name: Verify architecture flags
-      shell: pwsh
-      run: |
-        $commands = Get-Content compile_commands.json -Raw
-        if (!$commands.Contains('-march=haswell') -or !$commands.Contains('-mtune=generic')) {
-          throw 'Windows amd64 Release compile commands are missing the CLI architecture flags'
-        }
 
     - name: Set DUCKDB_INSTALL_LIB for ADBC tests
       shell: pwsh
@@ -159,7 +147,7 @@ jobs:
       with:
         runner_provider: ${{ inputs.runner_provider }}
         fetch_depth: 0
-        ref: ${{ inputs.duckdb_commit }}
+        ref: ${{ inputs.git_ref }}
 
     - uses: actions/setup-python@v6
       with:
@@ -197,15 +185,12 @@ jobs:
    runs-on: windows-2025-vs2026
    env:
      GEN: ninja
-     CC: clang-cl
-     CXX: clang-cl
-     EXTRA_CMAKE_VARIABLES: -DBUILD_UNITTESTS=FALSE -DCMAKE_C_COMPILER_TARGET=arm64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=arm64-pc-windows-msvc
 
    steps:
      - uses: actions/checkout@v6
        with:
          fetch-depth: 0
-         ref: ${{ inputs.duckdb_commit }}
+         ref: ${{ inputs.git_ref }}
 
      - uses: actions/setup-python@v6
        with:
@@ -221,16 +206,7 @@ jobs:
      - name: Build
        shell: bash
        run: |
-         clang-cl --version
-         python scripts/ci/retry.py -- make DUCKDB_PLATFORM=windows_arm64 windows_release
-
-     - name: Verify architecture flags
-       shell: pwsh
-       run: |
-         $commands = Get-Content compile_commands.json -Raw
-         if (!$commands.Contains('-march=armv8-a') -or !$commands.Contains('-mtune=generic')) {
-           throw 'Windows ARM64 Release compile commands are missing the architecture flags'
-         }
+         python scripts/ci/retry.py -- make DUCKDB_PLATFORM=windows_arm64 EXTRA_CMAKE_VARIABLES=-DBUILD_UNITTESTS=FALSE windows_release
 
      - name: Sign files with Azure Trusted Signing (TM)
        if: github.repository == 'duckdb/duckdb' && github.event_name != 'pull_request'
@@ -274,10 +250,10 @@ jobs:
      name: MinGW (64 Bit)
      needs:
       - win-release-64
+     if: ${{ !inputs.skip_tests }}
      runs-on: ${{ fromJSON(inputs.runners).windows_2022_x64 || 'windows-2022' }}
      env:
        GEN: ninja
-       EXTENSION_CONFIGS: '${GITHUB_WORKSPACE}/.github/config/bundled_extensions.cmake'
        ENABLE_EXTENSION_AUTOLOADING: 1
        ENABLE_EXTENSION_AUTOINSTALL: 1
      steps:
@@ -285,7 +261,7 @@ jobs:
          uses: duckdb/duckdb-ci/.github/actions/checkout@main
          with:
            runner_provider: ${{ inputs.runner_provider }}
-           ref: ${{ inputs.duckdb_commit }}
+           ref: ${{ inputs.git_ref }}
 
        - uses: actions/setup-python@v6
          with:
@@ -349,28 +325,4 @@ jobs:
          run: python scripts/ci/retry.py -- make release
 
        - name: Test
-         if: ${{ !inputs.skip_tests }}
          run: python build/release/test/run.py
-
-       - name: Bundle static libraries
-         run: make gather-libs
-
-       - name: Deploy static libraries
-         shell: bash
-         env:
-           AWS_ENDPOINT_URL: ${{ secrets.S3_DUCKDB_STAGING_ENDPOINT }}
-           AWS_ACCESS_KEY_ID: ${{ secrets.S3_DUCKDB_STAGING_ID }}
-           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_DUCKDB_STAGING_KEY }}
-         run: |
-           tmp_zip_dir="$(mktemp -d)"
-           archive_path="$(pwd)/static-libs-windows-mingw.zip"
-           cp src/include/duckdb.h "${tmp_zip_dir}/"
-           find build/release/libs -type f -exec cp {} "${tmp_zip_dir}/" \;
-           (cd "${tmp_zip_dir}" && "/c/Program Files/7-Zip/7z.exe" a -tzip "${archive_path}" ./*)
-           rm -rf "${tmp_zip_dir}"
-           ./scripts/upload-assets-to-staging.sh github_release static-libs-windows-mingw.zip
-
-       - uses: actions/upload-artifact@v7
-         with:
-           name: duckdb-static-libs-windows-mingw
-           path: static-libs-windows-mingw.zip

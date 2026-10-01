@@ -2,7 +2,7 @@ name: On Tag
 on:
   workflow_dispatch:
     inputs:
-      duckdb_version:
+      override_git_describe:
         type: string
   push:
     tags:        
@@ -13,5 +13,4 @@ jobs:
     uses: ./.github/workflows/StagedUpload.yml
     secrets: inherit
     with:
-      duckdb_commit: ${{ github.sha }}
-      duckdb_version: ${{ inputs.duckdb_version || github.ref_name }}
+      target_git_describe: ${{ inputs.override_git_describe || github.ref_name }}
